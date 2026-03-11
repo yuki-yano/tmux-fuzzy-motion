@@ -1,0 +1,41 @@
+{
+  "name": "tmux-fuzzy-motion",
+  "version": "0.1.0",
+  "description": "Fuzzy hint motion for tmux copy-mode",
+  "type": "module",
+  "bin": {
+    "tmux-fuzzy-motion": "./dist/cli.js"
+  },
+  "packageManager": "pnpm@10.32.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "rolldown -c",
+    "dev": "rolldown -c -w",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
+  },
+  "dependencies": {
+    "fzf": "^0.5.2",
+    "string-width": "^8.2.0",
+    "strip-ansi": "^7.2.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.4.0",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
+    "rolldown": "1.0.0-rc.8",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.57.0",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  }
+}
