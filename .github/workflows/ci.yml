@@ -19,6 +19,18 @@ jobs:
           node-version: 22
           cache: pnpm
 
+      - name: Install tmux 3.5a
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential bison pkg-config libevent-dev libncurses-dev wget
+          wget https://github.com/tmux/tmux/releases/download/3.5a/tmux-3.5a.tar.gz
+          tar -xzf tmux-3.5a.tar.gz
+          cd tmux-3.5a
+          ./configure
+          make -j"$(nproc)"
+          sudo make install
+          tmux -V
+
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
