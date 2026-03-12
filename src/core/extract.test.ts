@@ -60,4 +60,13 @@ describe('extractCandidates', () => {
 
     expect(path?.col).toBe(6)
   })
+
+  it('uses display-width columns for ASCII after emoji', () => {
+    const lines = ['😀a path']
+
+    const candidates = extractCandidates(lines)
+    const path = candidates.find((candidate) => candidate.text === 'path')
+
+    expect(path?.col).toBe(4)
+  })
 })

@@ -4,7 +4,12 @@ import tseslint from 'typescript-eslint'
 
 export default [
   {
-    ignores: ['dist/**', 'coverage/**', 'z-ai/references/**'],
+    ignores: [
+      'dist/**',
+      'coverage/**',
+      'z-ai/references/**',
+      'references/oss/**',
+    ],
   },
   {
     ...js.configs.recommended,

@@ -94,8 +94,8 @@ describe('tmux integration', () => {
 
     await moveCopyCursor(tmux, paneId, {
       line: target!.line,
-      col: target!.col,
-      primary: 0,
+      charCol: target!.charCol,
+      primaryChar: 0,
     })
 
     const position = await tmux.capture([
@@ -106,6 +106,50 @@ describe('tmux integration', () => {
       '#{copy_cursor_y}:#{copy_cursor_x}:#{copy_cursor_word}',
     ])
 
-    expect(position.trim()).toBe('2:10:path')
+    expect(position.trim()).toBe('2:7:path')
+  })
+
+  it('moves the copy-mode cursor to an extracted candidate after wide characters', async () => {
+    const capture = await capturePane(tmux, paneId)
+    const candidates = extractCandidates(capture.lines)
+    const target = candidates.find(
+      (candidate) => candidate.text === 'path' && candidate.line === 3,
+    )
+
+    expect(target).toBeDefined()
+
+    await moveCopyCursor(tmux, paneId, {
+      line: target!.line,
+      charCol: target!.charCol,
+      primaryChar: 0,
+    })
+
+    const position = await tmux.capture([
+      'display-message',
+      '-p',
+      '-t',
+      paneId,
+      '#{copy_cursor_y}:#{copy_cursor_x}:#{copy_cursor_word}',
+    ])
+
+    expect(position.trim()).toBe('2:7:path')
+  })
+
+  it('moves the copy-mode cursor using display columns inside wide characters', async () => {
+    await moveCopyCursor(tmux, paneId, {
+      line: 3,
+      charCol: 0,
+      primaryChar: 2,
+    })
+
+    const position = await tmux.capture([
+      'display-message',
+      '-p',
+      '-t',
+      paneId,
+      '#{copy_cursor_y}:#{copy_cursor_x}:#{copy_cursor_word}',
+    ])
+
+    expect(position.trim()).toBe('2:4:日本語')
   })
 })

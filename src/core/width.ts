@@ -8,6 +8,69 @@ export const displayWidth = (value: string): number => stringWidth(value)
 export const codeUnitIndexToColumn = (value: string, index: number): number =>
   stringWidth(value.slice(0, index))
 
+export const codeUnitIndexToCharacterIndex = (
+  value: string,
+  index: number,
+): number => Array.from(value.slice(0, index)).length
+
+export const codeUnitIndicesToColumns = (
+  value: string,
+  indices: number[],
+): number[] => {
+  if (indices.length === 0) {
+    return []
+  }
+
+  const sorted = [...new Set(indices)].sort((left, right) => left - right)
+  const columns: number[] = []
+  let currentIndex = 0
+  let currentColumn = 0
+  let pointer = 0
+
+  for (const char of value) {
+    const nextIndex = currentIndex + char.length
+    const width = Math.max(1, stringWidth(char))
+
+    while (pointer < sorted.length && sorted[pointer]! < nextIndex) {
+      columns.push(currentColumn)
+      pointer += 1
+    }
+
+    currentIndex = nextIndex
+    currentColumn += width
+  }
+
+  return [...new Set(columns)]
+}
+
+export const codeUnitRangeToColumns = (
+  value: string,
+  start: number,
+  end: number,
+): number[] => {
+  if (end <= start) {
+    return []
+  }
+
+  const columns: number[] = []
+  let currentIndex = 0
+  let currentColumn = 0
+
+  for (const char of value) {
+    const nextIndex = currentIndex + char.length
+    const width = Math.max(1, stringWidth(char))
+
+    if (currentIndex >= start && currentIndex < end) {
+      columns.push(currentColumn)
+    }
+
+    currentIndex = nextIndex
+    currentColumn += width
+  }
+
+  return columns
+}
+
 export const createDisplayCells = (value: string): string[] => {
   const cells: string[] = []
 

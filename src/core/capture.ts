@@ -9,6 +9,22 @@ export type PaneCapture = {
   displayLines: string[]
 }
 
+export const fitCaptureToHeight = (
+  capture: PaneCapture,
+  height: number,
+): PaneCapture => {
+  const nextHeight = Math.max(0, height)
+  const lines = capture.lines.slice(-nextHeight)
+  const displayLines = capture.displayLines.slice(-nextHeight)
+
+  return {
+    text: lines.join('\n'),
+    lines,
+    displayText: displayLines.join('\n'),
+    displayLines,
+  }
+}
+
 export const capturePane = async (
   tmux: TmuxClient,
   paneId: string,

@@ -1,59 +1,141 @@
 # tmux-fuzzy-motion
 
-`tmux copy-mode` 上で viewport 内の候補語を fuzzy match し、hint 選択でカーソル移動する CLI です。
+[日本語版はこちら](./README.ja.md)
+
+`tmux-fuzzy-motion` is a CLI for quick cursor jumps inside `tmux copy-mode`.
+It scans the current viewport, extracts jump targets, filters them with fuzzy
+search, and lets you jump with uppercase hints. Roman queries can also match
+Japanese text through Migemo.
+
+## Features
+
+- Works inside `tmux copy-mode`
+- Extracts URLs, paths, filenames, symbols, and general words from the current viewport
+- Supports fuzzy matching with `fzf`
+- Supports Migemo matching for alphabetic queries via `jsmigemo`
+- Preserves pane colors while drawing the overlay
+- Uses single-key uppercase hints for fast selection
+- Renders the query inside the target pane and restores the original pane after finishing
 
 ## Requirements
 
-- Node.js 22+
-- tmux 3.2+
-- pnpm
+- Node.js 22 or later
+- tmux 3.2 or later
 
 ## Install
 
 ```bash
-pnpm install
-pnpm build
+npm install -g tmux-fuzzy-motion@latest
 ```
 
-`dist/cli.js` は shebang 付きで出力されます。ローカル確認は `node dist/cli.js` でも実行できます。
-
-## Build
+If you prefer pnpm:
 
 ```bash
-pnpm build
+pnpm add -g tmux-fuzzy-motion@latest
 ```
 
-## tmux.conf
+Verify the installation:
+
+```bash
+tmux-fuzzy-motion doctor
+```
+
+You can also run it without a global install:
+
+```bash
+npx tmux-fuzzy-motion@latest doctor
+```
+
+## tmux Configuration
+
+Add these bindings to your `tmux.conf`:
 
 ```tmux
 bind-key -T copy-mode-vi s run-shell -b 'tmux-fuzzy-motion start #{pane_id} #{client_tty}'
 bind-key -T copy-mode s run-shell -b 'tmux-fuzzy-motion start #{pane_id} #{client_tty}'
 ```
 
+Reload tmux after editing the config:
+
+```bash
+tmux source-file ~/.tmux.conf
+```
+
 ## Usage
 
-1. `copy-mode` に入る
-2. `s` を押して popup を開く
-3. query を入力して候補を絞り込む
-4. `Enter` で hint 入力モードに入る
-5. hint を入力してカーソルを移動する
-6. `Esc` または `Ctrl-[` でキャンセルする
+1. Enter `copy-mode`.
+2. Press `s`.
+3. Type a query in lowercase or symbols.
+4. Narrow the candidates with fuzzy matching.
+5. For alphabetic queries, Migemo also expands roman input to Japanese matches.
+6. Press an uppercase hint to jump immediately.
+7. Press `Esc` or `Ctrl-[` to cancel.
 
-環境確認:
+## Input Keys
+
+- `A-Z`: select a visible hint immediately
+- `Enter`: select the first visible match
+- `Esc`, `Ctrl-[`, `Ctrl-g`: cancel
+- `Backspace`, `Ctrl-h`: delete one character
+- `Ctrl-w`: delete the previous word
+- `Ctrl-u`: clear the whole query
+
+## Commands
+
+```text
+tmux-fuzzy-motion start <pane-id> <client-tty>
+tmux-fuzzy-motion doctor
+```
+
+`input` is an internal subcommand used by `start`.
+
+## Doctor
+
+Use `doctor` to verify the local environment:
 
 ```bash
 tmux-fuzzy-motion doctor
 ```
 
+It checks:
+
+- Node.js version
+- tmux version
+- Migemo dictionary loading
+
 ## Development
+
+For local development from this repository:
+
+```bash
+pnpm install
+```
+
+You will need `pnpm` for the development workflow above.
+
+Build once:
+
+```bash
+pnpm build
+```
+
+Watch mode:
+
+```bash
+pnpm run dev
+```
+
+Run the full local check:
 
 ```bash
 pnpm check
 ```
 
-## Known Limitations
+## Limitations
 
-- 対象は現在 viewport のみ
-- `copy-mode` 専用
-- query 入力は ASCII 前提
-- combining character の完全一致は未保証
+- Targets are limited to the current viewport
+- Designed for `copy-mode` only
+- Query input is ASCII-oriented
+- Exact behavior for combining characters is not fully guaranteed
+- The overlay swaps in a temporary tmux pane and restores the original pane when it exits
+- The query is drawn on the bottom row inside the pane, aligned to the right edge

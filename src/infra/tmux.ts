@@ -7,51 +7,22 @@ export type TmuxClient = {
 }
 
 export type PaneGeometry = {
-  left: number
-  top: number
   width: number
   height: number
 }
 
-export const getStatusLineCount = (status: string): number => {
-  if (status === 'off') {
-    return 0
-  }
+export type PaneContext = PaneGeometry & {
+  paneId: string
+  currentPath: string
+}
 
-  if (status === 'on') {
-    return 1
-  }
-
-  const lines = Number(status)
-  return Number.isFinite(lines) && lines > 0 ? lines : 0
+export type ScratchWindow = {
+  windowId: string
+  paneId: string
 }
 
 export const shellQuote = (value: string): string =>
   `'${value.replaceAll("'", "'\\''")}'`
-
-export const buildDisplayPopupArgs = (
-  paneId: string,
-  clientTty: string,
-  geometry: PaneGeometry,
-  shellCommand: string,
-): string[] => [
-  'display-popup',
-  '-E',
-  '-B',
-  '-t',
-  paneId,
-  '-x',
-  '#{popup_pane_left}',
-  '-y',
-  '#{popup_pane_top}',
-  '-w',
-  String(geometry.width),
-  '-h',
-  String(geometry.height),
-  '-c',
-  clientTty,
-  shellCommand,
-]
 
 export const createTmuxClient = (): TmuxClient => ({
   async run(args) {
@@ -114,75 +85,118 @@ export const ensurePaneInCopyMode = async (
   }
 }
 
-export const getPaneGeometry = async (
+export const focusClientPane = async (
   tmux: TmuxClient,
   paneId: string,
   clientTty: string,
-): Promise<PaneGeometry> => {
-  const paneBorderStatus = (
-    await tmux.capture(['show-options', '-gv', 'pane-border-status'])
-  ).trim()
+): Promise<void> => {
+  await tmux.run(['switch-client', '-c', clientTty, '-t', paneId])
+  await tmux.run(['select-pane', '-t', paneId])
+}
 
+export const getPaneContext = async (
+  tmux: TmuxClient,
+  paneId: string,
+): Promise<PaneContext> => {
   const output = (
     await tmux.capture([
       'display-message',
       '-p',
-      '-c',
-      clientTty,
       '-t',
       paneId,
-      '#{pane_left};#{pane_top};#{pane_width};#{pane_height};#{client_height};#{status};#{status-position}',
+      '#{pane_id}\t#{pane_width}\t#{pane_height}\t#{pane_current_path}',
     ])
   ).trim()
 
-  const [left, top, width, paneHeight, clientHeight, status, statusPosition] =
-    output.split(';')
+  const [resolvedPaneId, width, height, currentPath] = output.split('\t')
 
   if (
-    [left, top, width, paneHeight, clientHeight]
+    !resolvedPaneId ||
+    !currentPath ||
+    [width, height]
       .map((value) => Number(value))
       .some((value) => !Number.isFinite(value))
   ) {
-    throw new Error('tmux-fuzzy-motion: failed to resolve pane geometry')
+    throw new Error('tmux-fuzzy-motion: failed to resolve pane context')
   }
-
-  const leftNumber = Number(left)
-  const topNumber = Number(top)
-  const widthNumber = Number(width)
-  const paneHeightNumber = Number(paneHeight)
-  const clientHeightNumber = Number(clientHeight)
-  const statusLines =
-    statusPosition === 'bottom' ? getStatusLineCount(status ?? 'off') : 0
-  const extraLine =
-    paneBorderStatus === 'bottom'
-      ? 1
-      : statusPosition === 'bottom' && statusLines > 0
-        ? 1
-        : 0
-  const usableStatusLines = statusPosition === 'bottom' ? statusLines : 0
-  const maxHeight = Math.max(
-    1,
-    clientHeightNumber - topNumber + usableStatusLines,
-  )
-  const height = Math.min(paneHeightNumber + extraLine, maxHeight)
 
   return {
-    left: leftNumber,
-    top: topNumber,
-    width: widthNumber,
-    height,
+    paneId: resolvedPaneId,
+    width: Number(width),
+    height: Number(height),
+    currentPath,
   }
+}
+
+export const createScratchWindow = async (
+  tmux: TmuxClient,
+  currentPath: string,
+  shellCommand: string,
+): Promise<ScratchWindow> => {
+  const output = (
+    await tmux.capture([
+      'new-window',
+      '-P',
+      '-d',
+      '-n',
+      '[tmux-fuzzy-motion]',
+      '-c',
+      currentPath,
+      '-F',
+      '#{window_id}\t#{pane_id}',
+      shellCommand,
+    ])
+  ).trim()
+
+  const [windowId, paneId] = output.split('\t')
+
+  if (!windowId || !paneId) {
+    throw new Error('tmux-fuzzy-motion: failed to create scratch window')
+  }
+
+  return { windowId, paneId }
+}
+
+export const resizeWindow = async (
+  tmux: TmuxClient,
+  windowId: string,
+  geometry: PaneGeometry,
+): Promise<void> => {
+  await tmux.run([
+    'resize-window',
+    '-t',
+    windowId,
+    '-x',
+    String(geometry.width),
+    '-y',
+    String(geometry.height),
+  ])
+}
+
+export const swapPanes = async (
+  tmux: TmuxClient,
+  sourcePaneId: string,
+  targetPaneId: string,
+): Promise<void> => {
+  await tmux.run([
+    'swap-pane',
+    '-d',
+    '-Z',
+    '-s',
+    sourcePaneId,
+    '-t',
+    targetPaneId,
+  ])
+}
+
+export const killWindow = async (
+  tmux: TmuxClient,
+  windowId: string,
+): Promise<void> => {
+  await tmux.run(['kill-window', '-t', windowId])
 }
 
 export const getTmuxVersion = async (): Promise<string> => {
   const result = await runProcess('tmux', ['-V'])
   return result.stdout.trim()
-}
-
-export const ensurePopupAvailable = async (tmux: TmuxClient): Promise<void> => {
-  const commands = await tmux.capture(['list-commands'])
-
-  if (!commands.includes('display-popup')) {
-    throw new Error('tmux-fuzzy-motion: popup is not available')
-  }
 }

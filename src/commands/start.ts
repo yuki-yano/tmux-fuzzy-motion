@@ -3,17 +3,20 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 import { moveCopyCursor } from '../core/action'
-import { capturePane } from '../core/capture'
+import { capturePane, fitCaptureToHeight } from '../core/capture'
 import { extractCandidates } from '../core/extract'
 import {
-  buildDisplayPopupArgs,
+  createScratchWindow,
   createTmuxClient,
   ensureClientExists,
   ensurePaneExists,
   ensurePaneInCopyMode,
-  ensurePopupAvailable,
-  getPaneGeometry,
+  focusClientPane,
+  getPaneContext,
+  killWindow,
+  resizeWindow,
   shellQuote,
+  swapPanes,
 } from '../infra/tmux'
 import type { InputResult, InputState } from '../types'
 
@@ -29,11 +32,22 @@ const readResult = async (resultFile: string): Promise<InputResult | null> => {
   }
 }
 
-const buildPopupShellCommand = (
+const waitForResult = async (resultFile: string): Promise<InputResult> => {
+  while (true) {
+    const result = await readResult(resultFile)
+    if (result) {
+      return result
+    }
+
+    await sleep(25)
+  }
+}
+
+const buildInputPaneShellCommand = (
   stateFile: string,
   resultFile: string,
-): string =>
-  [
+): string => {
+  const script = [
     shellQuote(process.execPath),
     shellQuote(process.argv[1] ?? join(process.cwd(), 'dist/cli.js')),
     'input',
@@ -41,7 +55,14 @@ const buildPopupShellCommand = (
     shellQuote(stateFile),
     '--result-file',
     shellQuote(resultFile),
+    ';',
+    'exec',
+    'sleep',
+    '86400',
   ].join(' ')
+
+  return `sh -lc ${shellQuote(script)}`
+}
 
 export const runStart = async (args: string[]): Promise<number> => {
   const [paneId, clientTty] = args
@@ -65,46 +86,56 @@ export const runStart = async (args: string[]): Promise<number> => {
   const tempDir = await mkdtemp(join(tmpdir(), 'tmux-fuzzy-motion-'))
   const stateFile = join(tempDir, 'state.json')
   const resultFile = join(tempDir, 'result.json')
+  let scratchWindowId: string | null = null
+  let scratchPaneId: string | null = null
+  let swapped = false
 
   try {
     await ensurePaneExists(tmux, paneId)
     await ensureClientExists(tmux, clientTty)
+    await focusClientPane(tmux, paneId, clientTty)
     await ensurePaneInCopyMode(tmux, paneId)
-    await ensurePopupAvailable(tmux)
-    const geometry = await getPaneGeometry(tmux, paneId, clientTty)
 
-    const capture = await capturePane(tmux, paneId)
+    const pane = await getPaneContext(tmux, paneId)
+    const capture = fitCaptureToHeight(
+      await capturePane(tmux, paneId),
+      pane.height,
+    )
     const candidates = extractCandidates(capture.lines)
-
-    if (candidates.length === 0) {
-      console.error('tmux-fuzzy-motion: no matches')
-      return 1
-    }
 
     const state: InputState = {
       paneId,
       clientTty,
       lines: capture.displayLines,
       candidates,
-      width: geometry.width,
-      height: geometry.height,
+      width: pane.width,
+      height: pane.height,
     }
 
     await writeFile(stateFile, JSON.stringify(state), 'utf8')
-    await tmux.run(
-      buildDisplayPopupArgs(
-        paneId,
-        clientTty,
-        geometry,
-        buildPopupShellCommand(stateFile, resultFile),
-      ),
+
+    const scratch = await createScratchWindow(
+      tmux,
+      pane.currentPath,
+      buildInputPaneShellCommand(stateFile, resultFile),
     )
-    const result = await readResult(resultFile)
-    await tmux.runQuiet(['display-popup', '-C', '-c', clientTty])
-    await sleep(25)
+    scratchWindowId = scratch.windowId
+    scratchPaneId = scratch.paneId
+
+    await resizeWindow(tmux, scratch.windowId, pane)
+    await swapPanes(tmux, scratch.paneId, paneId)
+    swapped = true
+
+    const result = await waitForResult(resultFile)
+
+    await swapPanes(tmux, scratch.paneId, paneId)
+    swapped = false
+    await killWindow(tmux, scratch.windowId)
+    scratchWindowId = null
+    scratchPaneId = null
     await tmux.runQuiet(['select-pane', '-t', paneId])
 
-    if (result?.status === 'selected') {
+    if (result.status === 'selected') {
       await moveCopyCursor(tmux, paneId, result.target)
     }
 
@@ -114,6 +145,23 @@ export const runStart = async (args: string[]): Promise<number> => {
     console.error(message)
     return message.startsWith('tmux-fuzzy-motion:') ? 2 : 1
   } finally {
+    if (swapped && scratchPaneId) {
+      await tmux.runQuiet([
+        'swap-pane',
+        '-d',
+        '-Z',
+        '-s',
+        scratchPaneId,
+        '-t',
+        paneId,
+      ])
+    }
+
+    if (scratchWindowId) {
+      await tmux.runQuiet(['kill-window', '-t', scratchWindowId])
+    }
+
+    await tmux.runQuiet(['select-pane', '-t', paneId])
     await rm(tempDir, { recursive: true, force: true })
   }
 }

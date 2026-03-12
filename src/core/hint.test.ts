@@ -9,8 +9,10 @@ const target = (text: string, line: number): MatchTarget => ({
   line,
   col: 0,
   endCol: text.length,
+  charCol: 0,
   positions: [0],
   primary: 0,
+  primaryChar: 0,
   score: 10,
   hint: '',
 })

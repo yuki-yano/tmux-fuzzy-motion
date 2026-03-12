@@ -1,9 +1,12 @@
 import { readFile, writeFile } from 'node:fs/promises'
+
 import stringWidth from 'string-width'
 
 import { assignHints, createTargetKey } from '../core/hint'
-import { matchCandidates } from '../core/matcher'
-import { renderOverlay } from '../core/overlay'
+import { loadMigemo } from '../core/migemo'
+import { createMatcher, type CandidateMatcher } from '../core/matcher'
+import { createOverlayRenderer } from '../core/overlay'
+import { createStyledDisplayCells } from '../core/width'
 import { clearScreen, createByteReader, withRawMode } from '../infra/tty'
 import type { InputResult, InputState, MatchTarget } from '../types'
 
@@ -12,10 +15,8 @@ type ParsedInputArgs = {
   resultFile: string
 }
 
-const PREFIX = 'fuzzy-motion:'
-const STATUS_STYLE = '\u001B[48;5;236;38;5;252m'
+const QUERY_STYLE = '\u001B[48;5;236;38;5;252m'
 const RESET = '\u001B[0m'
-const NO_MATCHES_SUFFIX = 'no matches'
 const HINT_CHARS = new Set('ASDFGHJKLQWERTYUIOPZXCVBNM')
 const WORD_CHAR_PATTERN = /[a-z0-9_-]/u
 
@@ -58,45 +59,104 @@ export const deleteBackwardWord = (query: string): string => {
   return next
 }
 
-const padStatus = (message: string, width: number): string => {
-  const messageWidth = stringWidth(message)
-  if (messageWidth >= width) {
-    return message.slice(0, width)
+const fitBodyToHeight = (lines: string[], height: number): string[] => {
+  const next = lines.slice(0, height)
+
+  while (next.length < height) {
+    next.push('')
   }
 
-  return `${message}${' '.repeat(width - messageWidth)}`
+  return next
 }
 
-const formatStatus = (query: string, matches: MatchTarget[]): string => {
+export const renderQueryOnBottomLine = (
+  line: string,
+  width: number,
+  query: string,
+): string => {
+  const cells = createStyledDisplayCells(line)
+
+  while (cells.length < width) {
+    cells.push(' ')
+  }
+
   if (query.length === 0) {
-    return `${PREFIX} `
+    return cells.slice(0, width).join('')
   }
 
-  if (matches.length === 0) {
-    return `${PREFIX} ${query} ${NO_MATCHES_SUFFIX}`
+  const queryWidth = Math.min(width, stringWidth(query))
+  const start = Math.max(0, width - queryWidth)
+  const content = Array.from(query)
+  let cursor = start
+
+  for (const char of content) {
+    if (cursor >= width) {
+      break
+    }
+
+    cells[cursor] = `${QUERY_STYLE}${char}${RESET}`
+    cursor += Math.max(1, stringWidth(char))
   }
 
-  return `${PREFIX} ${query}`
+  while (cursor < width) {
+    cells[cursor] = cells[cursor] ?? ' '
+    cursor += 1
+  }
+
+  return cells.slice(0, width).join('')
+}
+
+type Frame = {
+  body: string[]
+}
+
+const createFrame = (
+  state: InputState,
+  query: string,
+  matches: MatchTarget[],
+  renderOverlay: (targets: MatchTarget[]) => string[],
+): Frame => {
+  const body = fitBodyToHeight(
+    query.length > 0 && matches.length > 0
+      ? renderOverlay(matches)
+      : state.lines,
+    state.height,
+  )
+  const lastLineIndex = Math.max(0, body.length - 1)
+  body[lastLineIndex] = renderQueryOnBottomLine(
+    body[lastLineIndex] ?? '',
+    state.width,
+    query,
+  )
+  return { body }
+}
+
+const writeFullFrame = (output: NodeJS.WriteStream, frame: Frame): void => {
+  clearScreen(output)
+  output.write(frame.body.join('\n'))
 }
 
 const renderFrame = (
   output: NodeJS.WriteStream,
-  state: InputState,
-  query: string,
-  matches: MatchTarget[],
-): void => {
-  clearScreen(output)
-  const hasQuery = query.length > 0
-  const renderedLines =
-    hasQuery && matches.length > 0
-      ? renderOverlay(state.lines, matches)
-      : state.lines
-  output.write(`${renderedLines.join('\n')}`)
-  output.write(`\u001B[${state.height};1H`)
-  output.write('\u001B[2K')
-  output.write(
-    `${STATUS_STYLE}${padStatus(formatStatus(query, matches), state.width)}${RESET}`,
-  )
+  frame: Frame,
+  previousFrame?: Frame,
+): Frame => {
+  if (!previousFrame) {
+    writeFullFrame(output, frame)
+    return frame
+  }
+
+  for (let index = 0; index < frame.body.length; index += 1) {
+    if (frame.body[index] === previousFrame.body[index]) {
+      continue
+    }
+
+    output.write(`\u001B[${index + 1};1H`)
+    output.write('\u001B[2K')
+    output.write(frame.body[index] ?? '')
+  }
+
+  return frame
 }
 
 const writeResult = async (
@@ -107,11 +167,11 @@ const writeResult = async (
 }
 
 const computeMatches = (
-  state: InputState,
   query: string,
   previousHints: ReadonlyMap<string, string>,
+  matcher: CandidateMatcher,
 ): MatchTarget[] =>
-  assignHints(matchCandidates(state.candidates, query), previousHints, {
+  assignHints(matcher(query), previousHints, {
     maxHintLength: 1,
     maxTargets: 26,
   })
@@ -126,16 +186,22 @@ export const runInput = async (args: string[]): Promise<number> => {
   }
 
   const state = JSON.parse(await readFile(stateFile, 'utf8')) as InputState
+  const migemo = await loadMigemo()
+  const matcher = createMatcher(state.candidates, migemo)
+  const overlayRenderer = createOverlayRenderer(state.lines)
   let query = ''
   let previousHints = new Map<string, string>()
-  let matches = computeMatches(state, query, previousHints)
+  let matches = computeMatches(query, previousHints, matcher)
 
   const input = process.stdin
   const output = process.stdout
 
   await withRawMode(input, output, async () => {
     const reader = createByteReader(input)
-    renderFrame(output, state, query, matches)
+    let previousFrame = renderFrame(
+      output,
+      createFrame(state, query, matches, overlayRenderer),
+    )
 
     try {
       while (true) {
@@ -186,11 +252,15 @@ export const runInput = async (args: string[]): Promise<number> => {
           }
         }
 
-        matches = computeMatches(state, query, previousHints)
+        matches = computeMatches(query, previousHints, matcher)
         previousHints = new Map(
           matches.map((target) => [createTargetKey(target), target.hint]),
         )
-        renderFrame(output, state, query, matches)
+        previousFrame = renderFrame(
+          output,
+          createFrame(state, query, matches, overlayRenderer),
+          previousFrame,
+        )
       }
     } finally {
       reader.close()

@@ -6,11 +6,13 @@ export type Candidate = {
   line: number
   col: number
   endCol: number
+  charCol: number
 }
 
 export type MatchTarget = Candidate & {
   positions: number[]
   primary: number
+  primaryChar: number
   score: number
   hint: string
 }

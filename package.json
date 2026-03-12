@@ -1,10 +1,23 @@
 {
   "name": "tmux-fuzzy-motion",
-  "version": "0.1.0",
+  "version": "0.0.2",
   "description": "Fuzzy hint motion for tmux copy-mode",
   "type": "module",
+  "files": [
+    "dist",
+    "README.md",
+    "README.ja.md"
+  ],
   "bin": {
     "tmux-fuzzy-motion": "./dist/cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yuki-yano/tmux-fuzzy-motion.git"
+  },
+  "homepage": "https://github.com/yuki-yano/tmux-fuzzy-motion#readme",
+  "bugs": {
+    "url": "https://github.com/yuki-yano/tmux-fuzzy-motion/issues"
   },
   "packageManager": "pnpm@10.32.0",
   "engines": {
@@ -19,10 +32,12 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "ci": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test && pnpm build"
   },
   "dependencies": {
     "fzf": "^0.5.2",
+    "jsmigemo": "^0.5.2",
     "string-width": "^8.2.0",
     "strip-ansi": "^7.2.0"
   },

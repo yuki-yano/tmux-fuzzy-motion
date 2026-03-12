@@ -10,6 +10,9 @@ importers:
       fzf:
         specifier: ^0.5.2
         version: 0.5.2
+      jsmigemo:
+        specifier: ^0.5.2
+        version: 0.5.2
       string-width:
         specifier: ^8.2.0
         version: 8.2.0
@@ -1276,6 +1279,13 @@ packages:
         integrity: sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw==,
       }
 
+  jsmigemo@0.5.2:
+    resolution:
+      {
+        integrity: sha512-dY+uRg1X/uveBU2bIF2/PKDINmB2dipJQmDYsX9H+4cZVw0y8iFQV+Juv7JIjnwGco5MH5tXFQzTBn2oi24t0g==,
+      }
+    hasBin: true
+
   json-buffer@3.0.1:
     resolution:
       {
@@ -2325,6 +2335,8 @@ snapshots:
       is-extglob: 2.1.1
 
   isexe@2.0.0: {}
+
+  jsmigemo@0.5.2: {}
 
   json-buffer@3.0.1: {}
 

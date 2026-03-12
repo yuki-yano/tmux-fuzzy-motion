@@ -1,5 +1,9 @@
 import type { Candidate, CandidateKind } from '../types'
-import { codeUnitIndexToColumn, displayWidth } from './width'
+import {
+  codeUnitIndexToCharacterIndex,
+  codeUnitIndexToColumn,
+  displayWidth,
+} from './width'
 
 type RawCandidate = Candidate & {
   priority: number
@@ -48,12 +52,14 @@ export const extractCandidates = (lines: string[]): Candidate[] => {
         }
 
         const col = codeUnitIndexToColumn(lineText, startIndex)
+        const charCol = codeUnitIndexToCharacterIndex(lineText, startIndex)
         collected.push({
           kind,
           text,
           line: lineIndex + 1,
           col,
           endCol: col + width,
+          charCol,
           priority,
           startIndex,
           endIndex,
@@ -89,5 +95,6 @@ export const extractCandidates = (lines: string[]): Candidate[] => {
       line: candidate.line,
       col: candidate.col,
       endCol: candidate.endCol,
+      charCol: candidate.charCol,
     }))
 }

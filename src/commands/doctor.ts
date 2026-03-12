@@ -1,8 +1,5 @@
-import {
-  createTmuxClient,
-  ensurePopupAvailable,
-  getTmuxVersion,
-} from '../infra/tmux'
+import { getTmuxVersion } from '../infra/tmux'
+import { loadMigemo } from '../core/migemo'
 
 const parseMajorMinor = (version: string): number => {
   const match = version.match(/tmux\s+(\d+)\.(\d+)/)
@@ -16,13 +13,12 @@ const parseMajorMinor = (version: string): number => {
 export const runDoctor = async (): Promise<number> => {
   const nodeVersion = process.versions.node
   const nodeMajor = Number(nodeVersion.split('.')[0] ?? '0')
-  const tmux = createTmuxClient()
 
   try {
     const tmuxVersion = await getTmuxVersion()
-    const popupStatus = await (async () => {
-      await ensurePopupAvailable(tmux)
-      return 'ok'
+    const migemoStatus = await (async () => {
+      const migemo = await loadMigemo()
+      return migemo.query('kensaku').length > 0 ? 'ok' : 'empty'
     })()
 
     const issues: string[] = []
@@ -35,7 +31,7 @@ export const runDoctor = async (): Promise<number> => {
 
     console.log(`node: ${nodeVersion}`)
     console.log(`tmux: ${tmuxVersion}`)
-    console.log(`display-popup: ${popupStatus}`)
+    console.log(`migemo: ${migemoStatus}`)
 
     if (issues.length > 0) {
       for (const issue of issues) {

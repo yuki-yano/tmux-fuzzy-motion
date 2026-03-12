@@ -1,7 +1,7 @@
 import type { MatchTarget } from '../types'
 import type { TmuxClient } from '../infra/tmux'
 
-type CursorTarget = Pick<MatchTarget, 'line' | 'col' | 'primary'>
+type CursorTarget = Pick<MatchTarget, 'line' | 'charCol' | 'primaryChar'>
 
 export const createMoveCursorCommands = (
   paneId: string,
@@ -23,7 +23,7 @@ export const createMoveCursorCommands = (
 
   commands.push(['send-keys', '-X', '-t', paneId, 'start-of-line'])
 
-  const right = target.col + target.primary
+  const right = target.charCol + target.primaryChar
   if (right > 0) {
     commands.push([
       'send-keys',
