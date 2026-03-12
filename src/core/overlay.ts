@@ -2,9 +2,9 @@ import type { MatchTarget } from '../types'
 import { createStyledDisplayCells, displayWidth } from './width'
 
 const PRIMARY_HINT_STYLE = '\u001B[4;1;38;2;243;139;168m'
-const PRIMARY_HIGHLIGHT_STYLE = '\u001B[4;1;38;2;235;160;172m'
+const PRIMARY_HIGHLIGHT_STYLE = '\u001B[4;1;38;2;137;220;235m'
 const SECONDARY_HINT_STYLE = '\u001B[4;1;38;2;249;226;175m'
-const SECONDARY_HIGHLIGHT_STYLE = '\u001B[4;1;38;2;250;227;176m'
+const SECONDARY_HIGHLIGHT_STYLE = '\u001B[4;1;38;2;116;199;236m'
 const RESET = '\u001B[0m'
 
 const occupy = (occupied: boolean[], start: number, width: number): void => {
