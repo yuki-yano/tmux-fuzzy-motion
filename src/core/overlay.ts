@@ -83,8 +83,11 @@ export const createOverlayRenderer = (
       const paddedHint =
         hintCol < matchCol ? target.hint.padEnd(baseWidth, ' ') : target.hint
       const hintWidth = displayWidth(paddedHint)
+      const shouldHighlightPrimary = hintCol < matchCol
       const highlightCols = target.positions
-        .filter((position) => position !== target.primary)
+        .filter(
+          (position) => position !== target.primary || shouldHighlightPrimary,
+        )
         .map((position) => target.col + position)
       const isEnterTarget =
         enterTarget?.line === target.line &&

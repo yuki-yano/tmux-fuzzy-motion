@@ -88,6 +88,7 @@ describe('renderOverlay', () => {
     expect(
       rendered[0]?.startsWith('\u001B[4;1;38;2;243;139;168mA\u001B[0m'),
     ).toBe(true)
+    expect(rendered[0]).toContain('\u001B[4;1;38;2;235;160;172mp\u001B[0m')
   })
 
   it('keeps existing ANSI colors on untouched cells', () => {
@@ -135,8 +136,11 @@ describe('renderOverlay', () => {
     const rendered = renderOverlay(lines, targets)
 
     expect(
-      rendered[0]?.startsWith('\u001B[4;1;38;2;243;139;168mA \u001B[0mpath'),
+      rendered[0]?.startsWith(
+        '\u001B[4;1;38;2;243;139;168mA \u001B[0m\u001B[4;1;38;2;235;160;172mp\u001B[0math',
+      ),
     ).toBe(true)
+    expect(rendered[0]).toContain('\u001B[4;1;38;2;235;160;172mp\u001B[0m')
   })
 
   it('uses a different Catppuccin color for candidates after the first', () => {

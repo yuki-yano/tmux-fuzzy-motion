@@ -1,6 +1,6 @@
 {
   "name": "tmux-fuzzy-motion",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Fuzzy hint motion for tmux copy-mode",
   "type": "module",
   "files": [
