@@ -56,7 +56,7 @@ bind-key -T copy-mode-vi s run-shell 'tmux-fuzzy-motion start #{pane_id} #{clien
 bind-key -T copy-mode s run-shell 'tmux-fuzzy-motion start #{pane_id} #{client_tty}'
 ```
 
-`run-shell` を経由せずに tmux から直接 popup を開きたい場合は、次の設定も使えます。
+`start` サブコマンドを経由せずに tmux から直接 popup を開きたい場合は、次の設定も使えます。
 
 ```tmux
 bind-key -T copy-mode-vi s run-shell -C "display-popup -E -B -x '##{popup_pane_left}' -y '##{popup_pane_top}' -w '#{pane_width}' -h '#{pane_height}' 'tmux-fuzzy-motion popup-live #{pane_id}'"
@@ -139,12 +139,6 @@ pnpm run dev
 
 ```bash
 pnpm check
-```
-
-warm な daemon を前提に popup 起動時間を測る場合:
-
-```bash
-pnpm bench:startup dist/cli.js
 ```
 
 ## 制約

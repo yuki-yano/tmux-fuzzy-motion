@@ -56,8 +56,8 @@ bind-key -T copy-mode-vi s run-shell 'tmux-fuzzy-motion start #{pane_id} #{clien
 bind-key -T copy-mode s run-shell 'tmux-fuzzy-motion start #{pane_id} #{client_tty}'
 ```
 
-If you want tmux to open the popup directly and avoid the extra `run-shell`
-hop, use this instead:
+If you want tmux to open the popup directly without going through the `start`
+subcommand, use this instead:
 
 ```tmux
 bind-key -T copy-mode-vi s run-shell -C "display-popup -E -B -x '##{popup_pane_left}' -y '##{popup_pane_top}' -w '#{pane_width}' -h '#{pane_height}' 'tmux-fuzzy-motion popup-live #{pane_id}'"
@@ -140,12 +140,6 @@ Run the full local check:
 
 ```bash
 pnpm check
-```
-
-Measure popup startup against a warm daemon:
-
-```bash
-pnpm bench:startup dist/cli.js
 ```
 
 ## Limitations
