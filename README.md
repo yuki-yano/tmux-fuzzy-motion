@@ -66,6 +66,7 @@ bind-key -T copy-mode s run-shell -C "display-popup -E -B -x '##{popup_pane_left
 
 > [!NOTE]
 > If you see an error like `'tmux-fuzzy-motion start %25 /dev/ttys000' returned 127` at step 2 below, you need to add `tmux-fuzzy-motion` to the PATH in the run-shell environment:
+>
 > ```tmux
 > set-environment -g PATH "/path/to/node/bin:$PATH"
 > ```
