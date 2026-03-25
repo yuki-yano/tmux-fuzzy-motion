@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
+import { statSync } from 'node:fs'
 import { access, rm } from 'node:fs/promises'
 import { createConnection } from 'node:net'
 import { join, resolve } from 'node:path'
@@ -12,11 +13,18 @@ const sleep = async (milliseconds: number): Promise<void> =>
 export const resolveCliEntrypoint = (): string =>
   process.argv[1] ?? resolve(process.cwd(), 'dist/cli.js')
 
+const createDaemonIdentity = (): string => {
+  const entrypoint = resolveCliEntrypoint()
+  const entrypointMtimeMs = statSync(entrypoint).mtimeMs
+
+  return [process.env.TMUX ?? 'tmux-fuzzy-motion', process.execPath, entrypoint, String(entrypointMtimeMs)].join('\0')
+}
+
 export const createDaemonSocketPath = (): string =>
   join(
     '/tmp',
     `tfm-${createHash('sha1')
-      .update(process.env.TMUX ?? 'tmux-fuzzy-motion')
+      .update(createDaemonIdentity())
       .digest('hex')}.sock`,
   )
 
@@ -85,7 +93,7 @@ const isDaemonHealthy = async (socketPath: string): Promise<boolean> =>
   })
 
 const waitForDaemon = async (socketPath: string): Promise<void> => {
-  for (let attempt = 0; attempt < 40; attempt += 1) {
+  for (let attempt = 0; attempt < 200; attempt += 1) {
     if (await isDaemonHealthy(socketPath)) {
       return
     }
