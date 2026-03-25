@@ -17,7 +17,12 @@ const createDaemonIdentity = (): string => {
   const entrypoint = resolveCliEntrypoint()
   const entrypointMtimeMs = statSync(entrypoint).mtimeMs
 
-  return [process.env.TMUX ?? 'tmux-fuzzy-motion', process.execPath, entrypoint, String(entrypointMtimeMs)].join('\0')
+  return [
+    process.env.TMUX ?? 'tmux-fuzzy-motion',
+    process.execPath,
+    entrypoint,
+    String(entrypointMtimeMs),
+  ].join('\0')
 }
 
 export const createDaemonSocketPath = (): string =>
