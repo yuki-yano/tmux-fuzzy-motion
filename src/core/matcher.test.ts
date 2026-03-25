@@ -85,6 +85,35 @@ describe('matchCandidates', () => {
     expect(targets.map((target) => target.text)).toEqual(['foo', 'foobar'])
   })
 
+  it('keeps identical matches from different panes separate', () => {
+    const targets = matchCandidates(
+      [
+        {
+          paneId: '%1',
+          kind: 'word',
+          text: 'foo',
+          line: 1,
+          col: 0,
+          endCol: 3,
+          charCol: 0,
+        },
+        {
+          paneId: '%2',
+          kind: 'word',
+          text: 'foo',
+          line: 1,
+          col: 0,
+          endCol: 3,
+          charCol: 0,
+        },
+      ],
+      'foo',
+    )
+
+    expect(targets).toHaveLength(2)
+    expect(targets.map((target) => target.paneId)).toEqual(['%1', '%2'])
+  })
+
   it('converts migemo match positions to display columns for wide characters', () => {
     const targets = matchCandidates(
       [{ kind: 'word', text: '検索', line: 1, col: 0, endCol: 4, charCol: 0 }],

@@ -1,6 +1,9 @@
 export type CandidateKind = 'url' | 'path' | 'filename' | 'symbol' | 'word'
 
 export type Candidate = {
+  paneId?: string
+  screenLine?: number
+  screenCol?: number
   kind: CandidateKind
   text: string
   line: number
@@ -17,7 +20,18 @@ export type MatchTarget = Candidate & {
   hint: string
 }
 
-export type InputState = {
+export type PaneSnapshot = {
+  paneId: string
+  inCopyMode: boolean
+  width: number
+  height: number
+  left: number
+  top: number
+  plainLines: string[]
+  displayLines: string[]
+}
+
+type BaseInputState = {
   paneId: string
   clientTty: string
   displayLines: string[]
@@ -25,6 +39,15 @@ export type InputState = {
   width: number
   height: number
 }
+
+export type InputState =
+  | (BaseInputState & {
+      scope: 'current'
+    })
+  | (Omit<BaseInputState, 'plainLines'> & {
+      scope: 'all'
+      panes: PaneSnapshot[]
+    })
 
 export type InputResult =
   | {

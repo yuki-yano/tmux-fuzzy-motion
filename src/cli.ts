@@ -5,7 +5,7 @@ import { runStart } from './commands/start'
 const usage = `tmux-fuzzy-motion
 
 Usage:
-  tmux-fuzzy-motion start <pane-id> <client-tty>
+  tmux-fuzzy-motion start [--scope current|all] <pane-id> <client-tty>
   tmux-fuzzy-motion popup --state-file <path> --result-file <path> --socket <path>
   tmux-fuzzy-motion popup-live <pane-id>
   tmux-fuzzy-motion daemon --socket <path>

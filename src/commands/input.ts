@@ -296,13 +296,23 @@ const computeMatches = (
   })
 
 const createPreparedMatcher = async (
-  lines: string[],
+  state: InputState,
   migemoPromise: ReturnType<typeof loadMigemo>,
 ): Promise<{
   candidateCount: number
   matcher: CandidateMatcher
 }> => {
-  const candidates = extractCandidates(lines)
+  const candidates =
+    state.scope === 'all'
+      ? state.panes.flatMap((pane) =>
+          extractCandidates(pane.plainLines).map((candidate) => ({
+            ...candidate,
+            paneId: pane.paneId,
+            screenLine: pane.top + candidate.line,
+            screenCol: pane.left + candidate.col,
+          })),
+        )
+      : extractCandidates(state.plainLines)
   const migemo = await migemoPromise
 
   return {
@@ -589,6 +599,7 @@ export const runPopupLive = async (args: string[]): Promise<number> => {
     )
 
     const state: InputState = {
+      scope: 'current',
       paneId,
       clientTty: '',
       displayLines: capture.displayLines,
@@ -699,10 +710,7 @@ export const runDaemon = async (args: string[]): Promise<number> => {
         const state = JSON.parse(
           await readFile(request.stateFile, 'utf8'),
         ) as InputState
-        const prepared = await createPreparedMatcher(
-          state.plainLines,
-          migemoPromise,
-        )
+        const prepared = await createPreparedMatcher(state, migemoPromise)
         activeMatcher = prepared.matcher
         await writeMessage({
           type: 'prepared',

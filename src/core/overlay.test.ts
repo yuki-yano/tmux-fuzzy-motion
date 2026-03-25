@@ -180,4 +180,33 @@ describe('renderOverlay', () => {
     expect(rendered[0]).toContain('\u001B[4;1;38;2;249;226;175mS\u001B[0m')
     expect(rendered[0]).toContain('\u001B[4;1;38;2;116;199;236mt\u001B[0m')
   })
+
+  it('renders using screen coordinates when provided', () => {
+    const lines = ['left    right']
+    const targets: MatchTarget[] = [
+      {
+        paneId: '%right',
+        screenLine: 1,
+        screenCol: 8,
+        kind: 'word',
+        text: 'right',
+        line: 1,
+        col: 0,
+        endCol: 5,
+        charCol: 0,
+        positions: [0],
+        primary: 0,
+        primaryChar: 0,
+        score: 10,
+        hint: 'A',
+      },
+    ]
+
+    const rendered = renderOverlay(lines, targets)
+
+    expect(rendered[0]).toContain('left')
+    expect(rendered[0]).toContain(
+      'left   \u001B[4;1;38;2;243;139;168mA\u001B[0m\u001B[4;1;38;2;137;220;235mr\u001B[0might',
+    )
+  })
 })

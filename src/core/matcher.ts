@@ -19,6 +19,7 @@ export type CandidateMatcher = (query: string) => MatchTarget[]
 
 const candidateKey = (candidate: Candidate): string =>
   [
+    candidate.paneId ?? '',
     candidate.kind,
     candidate.text,
     String(candidate.line),

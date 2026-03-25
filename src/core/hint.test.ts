@@ -32,8 +32,8 @@ describe('assignHints', () => {
 
   it('keeps previous hints for still-visible targets', () => {
     const previous = new Map([
-      ['1:0:foo', 'N'],
-      ['2:0:bar', 'E'],
+      [':1:0:foo', 'N'],
+      [':2:0:bar', 'E'],
     ])
 
     const assigned = assignHints(
@@ -57,5 +57,22 @@ describe('assignHints', () => {
     expect(assigned).toHaveLength(26)
     expect(assigned[0]?.hint).toBe('A')
     expect(assigned[25]?.hint).toBe('M')
+  })
+
+  it('treats identical coordinates in different panes as different targets', () => {
+    const previous = new Map([
+      ['%1:1:0:foo', 'N'],
+      ['%2:1:0:foo', 'E'],
+    ])
+
+    const assigned = assignHints(
+      [
+        { ...target('foo', 1), paneId: '%1' },
+        { ...target('foo', 1), paneId: '%2' },
+      ],
+      previous,
+    )
+
+    expect(assigned.map((item) => item.hint)).toEqual(['N', 'E'])
   })
 })

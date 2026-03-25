@@ -45,6 +45,10 @@ export const createOverlayRenderer = (
 ): ((targets: MatchTarget[]) => string[]) => {
   const baseCellsByLine = lines.map((line) => createStyledDisplayCells(line))
   const baseLines = baseCellsByLine.map((cells) => cells.join(''))
+  const targetLine = (target: MatchTarget): number =>
+    (target.screenLine ?? target.line) - 1
+  const targetCol = (target: MatchTarget): number =>
+    target.screenCol ?? target.col
 
   return (targets: MatchTarget[]): string[] => {
     const rendered = [...baseLines]
@@ -54,12 +58,12 @@ export const createOverlayRenderer = (
 
     const sorted = [...targets].sort(
       (left, right) =>
-        left.line - right.line ||
-        left.col + left.primary - (right.col + right.primary),
+        targetLine(left) - targetLine(right) ||
+        targetCol(left) + left.primary - (targetCol(right) + right.primary),
     )
 
     for (const target of sorted) {
-      const lineIndex = target.line - 1
+      const lineIndex = targetLine(target)
       const baseCells = baseCellsByLine[lineIndex]
       if (!baseCells) {
         continue
@@ -77,7 +81,7 @@ export const createOverlayRenderer = (
         occupiedByLine.set(lineIndex, lineOccupied)
       }
 
-      const matchCol = target.col + target.primary
+      const matchCol = targetCol(target) + target.primary
       const hintCol = findOverlayStart(cells, matchCol)
       const baseWidth = measureCellWidth(cells, hintCol)
       const paddedHint =
@@ -88,10 +92,12 @@ export const createOverlayRenderer = (
         .filter(
           (position) => position !== target.primary || shouldHighlightPrimary,
         )
-        .map((position) => target.col + position)
+        .map((position) => targetCol(target) + position)
       const isEnterTarget =
-        enterTarget?.line === target.line &&
-        enterTarget.col === target.col &&
+        enterTarget !== undefined &&
+        enterTarget.paneId === target.paneId &&
+        targetLine(enterTarget) === lineIndex &&
+        targetCol(enterTarget) === targetCol(target) &&
         enterTarget.text === target.text
       const hintStyle = isEnterTarget
         ? PRIMARY_HINT_STYLE

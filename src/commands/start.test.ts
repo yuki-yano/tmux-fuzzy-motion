@@ -2,6 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { DisplayPopupOptions } from '../infra/tmux'
 
+type MockCapture = {
+  text: string
+  lines: string[]
+  displayText: string
+  displayLines: string[]
+}
+
 const tmux = {
   run: vi.fn(),
   runQuiet: vi.fn(),
@@ -9,6 +16,7 @@ const tmux = {
 }
 
 const fsMocks = vi.hoisted(() => ({
+  appendFile: vi.fn(),
   mkdtemp: vi.fn(),
   readFile: vi.fn(),
   rm: vi.fn(),
@@ -26,7 +34,9 @@ const tmuxMocks = vi.hoisted(() => ({
   displayPopup: vi.fn(),
   enterCopyMode: vi.fn(),
   focusClientPane: vi.fn(),
+  getPaneBorderLines: vi.fn(),
   getPaneStartContext: vi.fn(),
+  listWindowPanes: vi.fn(),
 }))
 
 const captureMocks = vi.hoisted(() => ({
@@ -57,6 +67,7 @@ describe('runStart', () => {
     }
 
     fsMocks.mkdtemp.mockResolvedValue('/tmp/tmux-fuzzy-motion-test')
+    fsMocks.appendFile.mockResolvedValue(undefined)
     fsMocks.readFile.mockResolvedValue(JSON.stringify({ status: 'cancelled' }))
     fsMocks.rm.mockResolvedValue(undefined)
     fsMocks.writeFile.mockResolvedValue(undefined)
@@ -75,6 +86,8 @@ describe('runStart', () => {
       width: 80,
       height: 16,
     })
+    tmuxMocks.getPaneBorderLines.mockResolvedValue('single')
+    tmuxMocks.listWindowPanes.mockResolvedValue([])
 
     captureMocks.capturePane.mockResolvedValue(capture)
     captureMocks.fitCaptureToHeight.mockReturnValue(capture)
@@ -182,5 +195,136 @@ describe('runStart', () => {
 
     expect(tmuxMocks.enterCopyMode).toHaveBeenCalledWith(tmux, '%127')
     expect(tmuxMocks.displayPopup).toHaveBeenCalledTimes(1)
+  })
+
+  it('supports all-pane scope and moves into the selected pane copy-mode', async () => {
+    captureMocks.capturePane
+      .mockResolvedValueOnce({
+        text: 'left pane',
+        lines: ['left pane'],
+        displayText: 'left pane',
+        displayLines: ['left pane'],
+      })
+      .mockResolvedValueOnce({
+        text: 'right pane',
+        lines: ['right pane'],
+        displayText: 'right pane',
+        displayLines: ['right pane'],
+      })
+    captureMocks.fitCaptureToHeight.mockImplementation(
+      (value: MockCapture) => value,
+    )
+    tmuxMocks.getPaneStartContext.mockResolvedValueOnce({
+      paneId: '%127',
+      inCopyMode: false,
+      currentPath: '/tmp',
+      width: 40,
+      height: 16,
+    })
+    tmuxMocks.listWindowPanes.mockResolvedValueOnce([
+      {
+        paneId: '%127',
+        inCopyMode: false,
+        currentPath: '/tmp/left',
+        width: 40,
+        height: 16,
+        left: 0,
+        top: 0,
+      },
+      {
+        paneId: '%128',
+        inCopyMode: false,
+        currentPath: '/tmp/right',
+        width: 40,
+        height: 16,
+        left: 41,
+        top: 0,
+      },
+    ])
+    tmuxMocks.getPaneBorderLines.mockResolvedValueOnce('single')
+    fsMocks.readFile.mockResolvedValueOnce(
+      JSON.stringify({
+        status: 'selected',
+        target: {
+          paneId: '%128',
+          screenLine: 1,
+          screenCol: 41,
+          kind: 'word',
+          text: 'right',
+          line: 1,
+          col: 0,
+          endCol: 5,
+          charCol: 0,
+          positions: [0],
+          primary: 0,
+          primaryChar: 0,
+          score: 1,
+          hint: 'A',
+        },
+      }),
+    )
+
+    const { runStart } = await import('./start')
+
+    await expect(
+      runStart(['--scope', 'all', '%127', '/dev/ttys001']),
+    ).resolves.toBe(0)
+
+    const stateWrite = fsMocks.writeFile.mock.calls.find(
+      ([filePath]) => filePath === '/tmp/tmux-fuzzy-motion-test/state.json',
+    )
+    const state = JSON.parse(String(stateWrite?.[1])) as {
+      scope: string
+      paneId: string
+      width: number
+      height: number
+      panes: unknown[]
+      displayLines: string[]
+    }
+    expect(state).toMatchObject({
+      scope: 'all',
+      paneId: '%127',
+      width: 81,
+      height: 16,
+    })
+    expect(state.panes).toHaveLength(2)
+    expect(state.displayLines[0]).toContain('left pane')
+    expect(state.displayLines[0]).toContain('│')
+    expect(state.displayLines[0]).toContain('right pane')
+
+    const popupOptions = tmuxMocks.displayPopup.mock.calls[0]?.[1] as
+      | DisplayPopupOptions
+      | undefined
+    expect(popupOptions).toMatchObject({
+      width: 81,
+      height: 16,
+    })
+    expect(popupOptions?.x).toContain('0')
+    expect(popupOptions?.x).toContain('#{popup_pane_left}')
+    expect(popupOptions?.x).toContain('#{pane_left}')
+    expect(popupOptions?.y).toContain('#{popup_height}')
+    expect(popupOptions?.y).toContain('#{status-position}')
+    expect(popupOptions?.y).toContain('#{client_height}')
+    expect(popupOptions?.y).toContain('#{window_height}')
+    expect(popupOptions?.y).toContain('#{window_offset_y}')
+    expect(tmuxMocks.enterCopyMode).toHaveBeenCalledTimes(1)
+    expect(tmuxMocks.enterCopyMode).toHaveBeenCalledWith(tmux, '%128')
+    expect(tmux.runQuiet).toHaveBeenCalledWith(['select-pane', '-t', '%128'])
+    expect(actionMocks.moveCopyCursor).toHaveBeenCalledWith(tmux, '%128', {
+      paneId: '%128',
+      screenLine: 1,
+      screenCol: 41,
+      kind: 'word',
+      text: 'right',
+      line: 1,
+      col: 0,
+      endCol: 5,
+      charCol: 0,
+      positions: [0],
+      primary: 0,
+      primaryChar: 0,
+      score: 1,
+      hint: 'A',
+    })
   })
 })

@@ -10,8 +10,9 @@ type HintOptions = {
 }
 
 export const createTargetKey = (
-  target: Pick<MatchTarget, 'line' | 'col' | 'text'>,
-): string => `${target.line}:${target.col}:${target.text}`
+  target: Pick<MatchTarget, 'paneId' | 'line' | 'col' | 'text'>,
+): string =>
+  `${target.paneId ?? ''}:${target.line}:${target.col}:${target.text}`
 
 const generateHints = (characters: string, maxHintLength: 1 | 2): string[] => {
   const single = [...characters]

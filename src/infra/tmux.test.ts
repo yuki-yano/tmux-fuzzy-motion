@@ -5,7 +5,9 @@ import {
   displayPopup,
   enterCopyMode,
   focusClientPane,
+  getPaneBorderLines,
   getPaneStartContext,
+  listWindowPanes,
 } from './tmux'
 
 describe('tmux helpers', () => {
@@ -142,5 +144,81 @@ describe('tmux helpers', () => {
     await expect(enterCopyMode(tmux, '%127')).rejects.toThrow(
       'tmux-fuzzy-motion: failed to enter copy-mode',
     )
+  })
+
+  it('lists panes in the current window', async () => {
+    const tmux = {
+      run: vi.fn(),
+      runQuiet: vi.fn(),
+      capture: vi
+        .fn()
+        .mockResolvedValueOnce(
+          [
+            '%127\t1\t80\t24\t/tmp/left\t0\t0\t1\t0',
+            '%128\t0\t81\t24\t/tmp/right\t80\t0\t0\t0',
+          ].join('\n'),
+        ),
+    }
+
+    await expect(listWindowPanes(tmux, '%127')).resolves.toEqual([
+      {
+        paneId: '%127',
+        inCopyMode: true,
+        width: 80,
+        height: 24,
+        currentPath: '/tmp/left',
+        left: 0,
+        top: 0,
+        active: true,
+      },
+      {
+        paneId: '%128',
+        inCopyMode: false,
+        width: 81,
+        height: 24,
+        currentPath: '/tmp/right',
+        left: 80,
+        top: 0,
+        active: false,
+      },
+    ])
+  })
+
+  it('keeps only the visible active pane while zoomed', async () => {
+    const tmux = {
+      run: vi.fn(),
+      runQuiet: vi.fn(),
+      capture: vi
+        .fn()
+        .mockResolvedValueOnce(
+          [
+            '%127\t1\t160\t48\t/tmp/zoomed\t0\t0\t1\t1',
+            '%128\t0\t80\t24\t/tmp/hidden\t80\t0\t0\t1',
+          ].join('\n'),
+        ),
+    }
+
+    await expect(listWindowPanes(tmux, '%127')).resolves.toEqual([
+      {
+        paneId: '%127',
+        inCopyMode: true,
+        width: 160,
+        height: 48,
+        currentPath: '/tmp/zoomed',
+        left: 0,
+        top: 0,
+        active: true,
+      },
+    ])
+  })
+
+  it('reads pane border lines from tmux options', async () => {
+    const tmux = {
+      run: vi.fn(),
+      runQuiet: vi.fn(),
+      capture: vi.fn().mockResolvedValueOnce('single'),
+    }
+
+    await expect(getPaneBorderLines(tmux, '%127')).resolves.toBe('single')
   })
 })
