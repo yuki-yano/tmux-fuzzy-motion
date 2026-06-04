@@ -34,10 +34,29 @@ const isContainedByHigherPriority = (
       candidate.endIndex >= current.endIndex,
   )
 
+const dedupeLineCandidates = (candidates: RawCandidate[]): RawCandidate[] => {
+  const byStartIndex = new Map<number, RawCandidate>()
+
+  for (const candidate of candidates) {
+    const current = byStartIndex.get(candidate.startIndex)
+    if (!current || candidate.priority < current.priority) {
+      byStartIndex.set(candidate.startIndex, candidate)
+    }
+  }
+
+  const deduped = [...byStartIndex.values()]
+
+  return deduped.filter(
+    (candidate) => !isContainedByHigherPriority(candidate, deduped),
+  )
+}
+
 export const extractCandidates = (lines: string[]): Candidate[] => {
   const collected: RawCandidate[] = []
 
   lines.forEach((lineText, lineIndex) => {
+    const lineCandidates: RawCandidate[] = []
+
     PATTERNS.forEach(({ kind, pattern }, priority) => {
       const regex = new RegExp(pattern.source, pattern.flags)
 
@@ -53,7 +72,7 @@ export const extractCandidates = (lines: string[]): Candidate[] => {
 
         const col = codeUnitIndexToColumn(lineText, startIndex)
         const charCol = codeUnitIndexToCharacterIndex(lineText, startIndex)
-        collected.push({
+        lineCandidates.push({
           kind,
           text,
           line: lineIndex + 1,
@@ -66,23 +85,11 @@ export const extractCandidates = (lines: string[]): Candidate[] => {
         })
       }
     })
+
+    collected.push(...dedupeLineCandidates(lineCandidates))
   })
 
-  const deduped = collected.filter((candidate, _, source) => {
-    const firstSameStart = source.find(
-      (other) =>
-        other.line === candidate.line &&
-        other.startIndex === candidate.startIndex &&
-        other.priority <= candidate.priority,
-    )
-
-    return firstSameStart === candidate
-  })
-
-  return deduped
-    .filter(
-      (candidate, _, source) => !isContainedByHigherPriority(candidate, source),
-    )
+  return collected
     .sort(
       (left, right) =>
         left.line - right.line ||

@@ -85,6 +85,66 @@ export const createDisplayCells = (value: string): string[] => {
   return cells
 }
 
+export const createCompactStyledDisplayCells = (value: string): string[] => {
+  const cells: string[] = []
+  let activeStyle = ''
+  let pendingStyle = ''
+  let styleOpen = false
+  let lastVisibleCellIndex = -1
+  let lastIndex = 0
+
+  const appendChunk = (chunk: string): void => {
+    for (const char of chunk) {
+      const width = Math.max(1, stringWidth(char))
+      const prefix =
+        pendingStyle.length > 0
+          ? pendingStyle
+          : !styleOpen && activeStyle.length > 0
+            ? activeStyle
+            : ''
+      cells.push(`${prefix}${char}`)
+      if (prefix.length > 0) {
+        pendingStyle = ''
+        styleOpen = true
+      }
+      lastVisibleCellIndex = cells.length - 1
+      for (let offset = 1; offset < width; offset += 1) {
+        cells.push('')
+      }
+    }
+  }
+
+  const closeStyle = (): void => {
+    if (styleOpen && lastVisibleCellIndex >= 0) {
+      cells[lastVisibleCellIndex] = `${cells[lastVisibleCellIndex]}${RESET}`
+    }
+    activeStyle = ''
+    pendingStyle = ''
+    styleOpen = false
+  }
+
+  for (const match of value.matchAll(ANSI_PATTERN)) {
+    const start = match.index ?? 0
+    appendChunk(value.slice(lastIndex, start))
+
+    const sequence = match[0]
+    if (sequence === RESET) {
+      closeStyle()
+    } else {
+      activeStyle = `${activeStyle}${sequence}`
+      pendingStyle = `${pendingStyle}${sequence}`
+    }
+    lastIndex = start + sequence.length
+  }
+
+  appendChunk(value.slice(lastIndex))
+  if (styleOpen) {
+    closeStyle()
+  }
+
+  return cells
+}
+
 export const createStyledDisplayCells = (value: string): string[] => {
   const cells: string[] = []
   let activeStyle = ''

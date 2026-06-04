@@ -4,7 +4,7 @@ import { join } from 'node:path'
 
 import { moveCopyCursor } from '../core/action'
 import { capturePane, fitCaptureToHeight } from '../core/capture'
-import { createStyledDisplayCells } from '../core/width'
+import { createCompactStyledDisplayCells } from '../core/width'
 import {
   createDaemonSocketPath,
   ensureDaemon,
@@ -254,7 +254,7 @@ const composeDisplayLines = (
         return
       }
 
-      const cells = createStyledDisplayCells(line)
+      const cells = createCompactStyledDisplayCells(line)
       cells.forEach((cell, cellIndex) => {
         const column = pane.left + cellIndex
         if (column < 0 || column >= row.length) {
@@ -321,24 +321,25 @@ const buildAllPaneState = async (
       bottom: Number.NEGATIVE_INFINITY,
     },
   )
-  const snapshots: PaneSnapshot[] = []
+  const snapshots = await Promise.all(
+    panes.map(async (item): Promise<PaneSnapshot> => {
+      const capture = fitCaptureToHeight(
+        await capturePane(tmux, item.paneId),
+        item.height,
+      )
 
-  for (const item of panes) {
-    const capture = fitCaptureToHeight(
-      await capturePane(tmux, item.paneId),
-      item.height,
-    )
-    snapshots.push({
-      paneId: item.paneId,
-      inCopyMode: item.inCopyMode,
-      width: item.width,
-      height: item.height,
-      left: item.left - bounds.left,
-      top: item.top - bounds.top,
-      plainLines: capture.lines,
-      displayLines: capture.displayLines,
-    })
-  }
+      return {
+        paneId: item.paneId,
+        inCopyMode: item.inCopyMode,
+        width: item.width,
+        height: item.height,
+        left: item.left - bounds.left,
+        top: item.top - bounds.top,
+        plainLines: capture.lines,
+        displayLines: capture.displayLines,
+      }
+    }),
+  )
 
   const width = Math.max(0, bounds.right - bounds.left)
   const height = Math.max(0, bounds.bottom - bounds.top)

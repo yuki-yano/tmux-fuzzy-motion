@@ -13,7 +13,10 @@ import { loadMigemo } from '../core/migemo'
 import { createMatcher, type CandidateMatcher } from '../core/matcher'
 import { createDaemonSocketPath, ensureDaemon } from './runtime'
 import { createOverlayRenderer } from '../core/overlay'
-import { createStyledDisplayCells } from '../core/width'
+import {
+  createCompactStyledDisplayCells,
+  createStyledDisplayCells,
+} from '../core/width'
 import { createTmuxClient, getPaneStartContext } from '../infra/tmux'
 import { clearScreen, createByteReader, withRawMode } from '../infra/tty'
 import type {
@@ -53,6 +56,7 @@ type DaemonClient = {
 
 const QUERY_STYLE = '\u001B[48;5;236;38;5;252m'
 const RESET = '\u001B[0m'
+const ANSI_PATTERN = /\u001B\[[0-9;]*m/u
 const HINT_CHARS = new Set('ASDFGHJKLQWERTYUIOPZXCVBNM')
 const WORD_CHAR_PATTERN = /[a-z0-9_-]/u
 
@@ -190,14 +194,22 @@ export const renderQueryOnBottomLine = (
   width: number,
   query: string,
 ): string => {
+  if (query.length === 0) {
+    const cells = createCompactStyledDisplayCells(line)
+    while (cells.length < width) {
+      cells.push(' ')
+    }
+
+    const rendered = cells.slice(0, width).join('')
+    return ANSI_PATTERN.test(rendered) && !rendered.endsWith(RESET)
+      ? `${rendered}${RESET}`
+      : rendered
+  }
+
   const cells = createStyledDisplayCells(line)
 
   while (cells.length < width) {
     cells.push(' ')
-  }
-
-  if (query.length === 0) {
-    return cells.slice(0, width).join('')
   }
 
   const queryWidth = Math.min(width, stringWidth(query))
@@ -226,14 +238,14 @@ type Frame = {
   body: string[]
 }
 
-const createFrame = (
+export const createFrame = (
   state: InputState,
   query: string,
   matches: MatchTarget[],
-  renderOverlay: (targets: MatchTarget[]) => string[],
+  renderOverlay?: (targets: MatchTarget[]) => string[],
 ): Frame => {
   const body = fitBodyToHeight(
-    query.length > 0 && matches.length > 0
+    query.length > 0 && matches.length > 0 && renderOverlay
       ? renderOverlay(matches)
       : state.displayLines,
     state.height,
@@ -447,7 +459,11 @@ const runPopupJob = async (
   state: InputState,
   options: PopupJobOptions,
 ): Promise<void> => {
-  const overlayRenderer = createOverlayRenderer(state.displayLines)
+  let overlayRenderer: ((targets: MatchTarget[]) => string[]) | null = null
+  const getOverlayRenderer = (): ((targets: MatchTarget[]) => string[]) => {
+    overlayRenderer ??= createOverlayRenderer(state.displayLines)
+    return overlayRenderer
+  }
   let query = ''
   let previousHints = new Map<string, string>()
   let matches: MatchTarget[] = []
@@ -457,10 +473,7 @@ const runPopupJob = async (
 
   await withRawMode(input, output, async () => {
     const reader = createByteReader(input)
-    let previousFrame = renderFrame(
-      output,
-      createFrame(state, query, matches, overlayRenderer),
-    )
+    let previousFrame = renderFrame(output, createFrame(state, query, matches))
 
     try {
       while (true) {
@@ -514,7 +527,12 @@ const runPopupJob = async (
         )
         previousFrame = renderFrame(
           output,
-          createFrame(state, query, matches, overlayRenderer),
+          createFrame(
+            state,
+            query,
+            matches,
+            matches.length > 0 ? getOverlayRenderer() : undefined,
+          ),
           previousFrame,
         )
       }
