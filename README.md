@@ -4,8 +4,7 @@
 
 `tmux-fuzzy-motion` is a CLI for quick cursor jumps in tmux panes.
 It scans the current viewport, extracts jump targets, filters them with fuzzy
-search, and lets you jump with uppercase hints. Roman queries can also match
-Japanese text through Migemo.
+search, and lets you jump with uppercase hints.
 
 ## Features
 
@@ -13,40 +12,26 @@ Japanese text through Migemo.
 - `start` can also be launched outside copy-mode and enters copy-mode automatically
 - `start --scope all` can target every visible pane in the current window
 - Extracts URLs, paths, filenames, symbols, and general words from the current viewport
-- Supports fuzzy matching with `fzf`
-- Supports Migemo matching for alphabetic queries via `jsmigemo`
+- Supports fast built-in fuzzy matching and Migemo-powered romaji search
 - Preserves pane colors while drawing the overlay
-- Reuses an external daemon process so matcher and Migemo startup stay warm
 - Uses single-key uppercase hints for fast selection
 - Opens the UI in a tmux popup instead of creating a persistent scratch window
 
 ## Requirements
 
-- Node.js 22 or later
+- Rust/Cargo for installation from crates.io
 - tmux 3.2 or later
 
 ## Install
 
 ```bash
-npm install -g tmux-fuzzy-motion@latest
-```
-
-If you prefer pnpm:
-
-```bash
-pnpm add -g tmux-fuzzy-motion@latest
+cargo install tmux-fuzzy-motion
 ```
 
 Verify the installation:
 
 ```bash
 tmux-fuzzy-motion doctor
-```
-
-You can also run it without a global install:
-
-```bash
-npx tmux-fuzzy-motion@latest doctor
 ```
 
 ## tmux Configuration
@@ -84,7 +69,7 @@ bind-key -T copy-mode s run-shell -C "display-popup -E -B -x '##{popup_pane_left
 > If you see an error like `'tmux-fuzzy-motion start %25 /dev/ttys000' returned 127` at step 2 below, you need to add `tmux-fuzzy-motion` to the PATH in the run-shell environment:
 >
 > ```tmux
-> set-environment -g PATH "/path/to/node/bin:$PATH"
+> set-environment -g PATH "$HOME/.cargo/bin:$PATH"
 > ```
 
 Reload tmux after editing the config:
@@ -101,12 +86,12 @@ tmux source-file ~/.tmux.conf
 3. `--scope all` targets every visible pane in the current window by composing
    them into a single popup.
 4. Type a query in lowercase or symbols.
-5. Narrow the candidates with fuzzy matching.
-6. For alphabetic queries, Migemo also expands roman input to Japanese matches.
-7. Press an uppercase hint to jump immediately.
-8. In `--scope all`, the selected pane becomes active and enters copy-mode if
+5. Narrow the candidates with fuzzy matching. Romaji queries can also match
+   Japanese words through the bundled Migemo dictionary.
+6. Press an uppercase hint to jump immediately.
+7. In `--scope all`, the selected pane becomes active and enters copy-mode if
    needed before the cursor moves.
-9. Press `Esc` or `Ctrl-[` to cancel.
+8. Press `Esc` or `Ctrl-[` to cancel.
 
 ## Input Keys
 
@@ -125,8 +110,8 @@ tmux-fuzzy-motion popup-live <pane-id>
 tmux-fuzzy-motion doctor
 ```
 
-`popup` and `daemon` are internal subcommands. `popup-live` is intended for
-direct `display-popup` bindings.
+`popup` is an internal subcommand. `popup-live` is intended for direct
+`display-popup` bindings.
 
 `--scope`:
 
@@ -143,37 +128,37 @@ tmux-fuzzy-motion doctor
 
 It checks:
 
-- Node.js version
 - tmux version
-- Migemo dictionary loading
+- Rust runtime build
 
 ## Development
 
 For local development from this repository:
 
 ```bash
-pnpm install
+cargo build
 ```
 
-You will need `pnpm` for the development workflow above.
-
-Build once:
+Run tests:
 
 ```bash
-pnpm build
-```
-
-Watch mode:
-
-```bash
-pnpm run dev
+cargo test
 ```
 
 Run the full local check:
 
 ```bash
-pnpm check
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+cargo build --release
 ```
+
+## Third-party components
+
+Migemo support uses source code from `oguna/rustmigemo` and a bundled compact
+dictionary from `oguna/yet-another-migemo-dict`. See [NOTICE.md](./NOTICE.md)
+for license and provenance details.
 
 ## Limitations
 

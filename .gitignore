@@ -1,4 +1,3 @@
-node_modules
-dist
-coverage
-.tmux-fuzzy-motion-tmp
+.DS_Store
+target/
+.tmux-fuzzy-motion-tmp/

@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   publish:
@@ -16,24 +15,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          version: 10.32.0
+          components: rustfmt, clippy
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.13.0
-          cache: pnpm
-          registry-url: https://registry.npmjs.org
-
-      - name: Install npm 11.5.1
-        run: npm install -g npm@11.5.1
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run checks
-        run: pnpm check
-
-      - name: Publish package
-        run: npm publish --access public
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - run: cargo publish --token "$CARGO_REGISTRY_TOKEN"
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

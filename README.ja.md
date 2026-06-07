@@ -4,8 +4,7 @@
 
 `tmux-fuzzy-motion` は、tmux pane 内で素早くカーソル移動するための CLI です。
 現在の viewport からジャンプ対象を抽出し、fuzzy search で絞り込み、
-大文字の hint で移動できます。英字のローマ字 query に対しては Migemo による
-日本語マッチも行います。
+大文字の hint で移動できます。
 
 ## 特徴
 
@@ -13,40 +12,26 @@
 - `start` は copy mode の外から起動しても自動で copy mode に入る
 - `start --scope all` は current window の visible pane 全体を対象にできる
 - 現在の viewport から URL、path、filename、symbol、一般的な単語を抽出
-- `fzf` による fuzzy match
-- `jsmigemo` による英字 query の Migemo マッチ
+- Rust 実装の built-in fuzzy match と Migemo によるローマ字日本語検索
 - overlay 描画時も pane の色を維持
-- 外部 daemon を再利用し、matcher と Migemo の起動コストを常駐側へ寄せる
 - 単一キーの大文字 hint で素早く選択
 - UI は tmux popup で表示し、常駐用の scratch window を作らない
 
 ## 動作要件
 
-- Node.js 22 以上
+- crates.io からの install に Rust/Cargo
 - tmux 3.2 以上
 
 ## インストール
 
 ```bash
-npm install -g tmux-fuzzy-motion@latest
-```
-
-pnpm を使う場合:
-
-```bash
-pnpm add -g tmux-fuzzy-motion@latest
+cargo install tmux-fuzzy-motion
 ```
 
 インストール確認:
 
 ```bash
 tmux-fuzzy-motion doctor
-```
-
-グローバル install せずにその場で実行する場合:
-
-```bash
-npx tmux-fuzzy-motion@latest doctor
 ```
 
 ## tmux 設定
@@ -81,7 +66,7 @@ bind-key -T copy-mode s run-shell -C "display-popup -E -B -x '##{popup_pane_left
 > 後述の手順の`2.`で`'tmux-fuzzy-motion start %25 /dev/ttys000' returned 127`のようなエラーが表示される場合は以下のようにrun-shell環境のPATHに`tmux-fuzzy-motion`を含める必要があります。
 >
 > ```tmux
-> set-environment -g PATH "/path/to/node/bin:$PATH"
+> set-environment -g PATH "$HOME/.cargo/bin:$PATH"
 > ```
 
 設定変更後は tmux を reload します。
@@ -96,11 +81,10 @@ tmux source-file ~/.tmux.conf
 2. `--scope current`（default）は current pane のみを対象にし、pane がまだ `copy-mode` でなければ先に `copy-mode` に入る
 3. `--scope all` は current window の visible pane 全体を popup に合成して対象にする
 4. 小文字や記号で query を入力する
-5. fuzzy match で候補を絞り込む
-6. 英字 query の場合は Migemo による日本語候補も対象になる
-7. 大文字 hint を押して即座に移動する
-8. `--scope all` で選択した場合は、該当 pane を active にして必要なら `copy-mode` に入ってから移動する
-9. `Esc` または `Ctrl-[` でキャンセルする
+5. fuzzy match で候補を絞り込む。ローマ字 query は同梱 Migemo 辞書で日本語語句にも一致する
+6. 大文字 hint を押して即座に移動する
+7. `--scope all` で選択した場合は、該当 pane を active にして必要なら `copy-mode` に入ってから移動する
+8. `Esc` または `Ctrl-[` でキャンセルする
 
 ## 入力キー
 
@@ -119,7 +103,7 @@ tmux-fuzzy-motion popup-live <pane-id>
 tmux-fuzzy-motion doctor
 ```
 
-`popup` と `daemon` は内部サブコマンドです。`popup-live` は `display-popup`
+`popup` は内部サブコマンドです。`popup-live` は `display-popup`
 から直接起動する設定向けです。
 
 `--scope`:
@@ -137,37 +121,37 @@ tmux-fuzzy-motion doctor
 
 確認内容:
 
-- Node.js の version
 - tmux の version
-- Migemo 辞書の読み込み可否
+- Rust runtime build
 
 ## 開発
 
 このリポジトリからローカル開発する場合:
 
 ```bash
-pnpm install
+cargo build
 ```
 
-この開発フローでは `pnpm` が必要です。
-
-1 回 build:
+test:
 
 ```bash
-pnpm build
-```
-
-watch build:
-
-```bash
-pnpm run dev
+cargo test
 ```
 
 ローカルの一括確認:
 
 ```bash
-pnpm check
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+cargo build --release
 ```
+
+## third-party components
+
+Migemo support には `oguna/rustmigemo` の source code と
+`oguna/yet-another-migemo-dict` の compact dictionary を同梱しています。
+license と出典の詳細は [NOTICE.md](./NOTICE.md) を参照してください。
 
 ## 制約
 
