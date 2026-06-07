@@ -202,7 +202,7 @@ pub fn create_initial_frame_output(body: &[String]) -> String {
         .iter()
         .map(|line| line.trim_end())
         .collect::<Vec<_>>()
-        .join("\n");
+        .join("\r\n");
     let sparse = body
         .iter()
         .enumerate()
@@ -277,5 +277,11 @@ mod tests {
         let mut body = vec![String::new(); 20];
         body[9] = "hello".to_string();
         assert_eq!(create_initial_frame_output(&body), "\x1b[10;1Hhello");
+    }
+
+    #[test]
+    fn renders_full_initial_frame_with_carriage_returns() {
+        let body = vec!["abc".to_string(), "def".to_string()];
+        assert_eq!(create_initial_frame_output(&body), "abc\r\ndef");
     }
 }
