@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { InputState, MatchTarget } from '../types'
 import {
   createFrame,
+  createInitialFrameOutput,
   deleteBackwardChar,
   deleteBackwardWord,
   parseDaemonRequestLine,
@@ -90,6 +91,14 @@ describe('input editing helpers', () => {
 
     expect(frame.body[0]).not.toBe('foo')
     expect(renderOverlay).toHaveBeenCalledWith(matches)
+  })
+
+  it('serializes the initial frame with the shortest clear-screen-safe output', () => {
+    expect(
+      createInitialFrameOutput({
+        body: ['alpha   ', '', '  beta  '],
+      }),
+    ).toBe('alpha\n\n  beta')
   })
 
   it('parses a prepare daemon request', () => {

@@ -14,9 +14,7 @@ import {
   createTmuxClient,
   displayPopup,
   enterCopyMode,
-  focusClientPane,
   getPaneStartContext,
-  getPaneBorderLines,
   listWindowPanes,
   type PaneBorderLines,
   type DisplayPopupOptions,
@@ -268,7 +266,7 @@ const composeDisplayLines = (
 
   drawPaneBorders(rows, occupied, borderLines)
 
-  return rows.map((row) => row.join(''))
+  return rows.map((row) => row.join('').trimEnd())
 }
 
 const buildCurrentState = async (
@@ -301,12 +299,18 @@ const buildCurrentState = async (
 
 const buildAllPaneState = async (
   tmux: ReturnType<typeof createTmuxClient>,
-  pane: PaneStartContext,
   paneId: string,
   clientTty: string,
 ): Promise<PopupState> => {
   const panes = await listWindowPanes(tmux, paneId)
-  const borderLines = await getPaneBorderLines(tmux, paneId)
+  const targetPane =
+    panes.find((item) => item.paneId === paneId) ??
+    panes.find((item) => item.active) ??
+    panes[0]
+  if (!targetPane) {
+    throw new Error('tmux-fuzzy-motion: pane not found')
+  }
+  const borderLines = targetPane.borderLines
   const bounds = panes.reduce(
     (accumulator, item) => ({
       left: Math.min(accumulator.left, item.left),
@@ -351,11 +355,11 @@ const buildAllPaneState = async (
     paneId,
     clientTty,
     targetPane: {
-      paneId: pane.paneId,
-      width: pane.width,
-      height: pane.height,
-      inCopyMode: pane.inCopyMode,
-      currentPath: pane.currentPath,
+      paneId: targetPane.paneId,
+      width: targetPane.width,
+      height: targetPane.height,
+      inCopyMode: targetPane.inCopyMode,
+      currentPath: targetPane.currentPath,
     },
     bounds,
     size: {
@@ -379,7 +383,7 @@ const buildAllPaneState = async (
   })
 
   return {
-    currentPath: pane.currentPath,
+    currentPath: targetPane.currentPath,
     x,
     y,
     state: {
@@ -419,12 +423,15 @@ export const runStart = async (args: string[]): Promise<number> => {
   const socketPath = createDaemonSocketPath()
 
   try {
-    const pane = await getPaneStartContext(tmux, paneId)
-    await focusClientPane(tmux, paneId, clientTty)
     const popupState =
       scope === 'all'
-        ? await buildAllPaneState(tmux, pane, paneId, clientTty)
-        : await buildCurrentState(tmux, pane, paneId, clientTty)
+        ? await buildAllPaneState(tmux, paneId, clientTty)
+        : await buildCurrentState(
+            tmux,
+            await getPaneStartContext(tmux, paneId),
+            paneId,
+            clientTty,
+          )
     const state = popupState.state
 
     await writeFile(stateFile, JSON.stringify(state), 'utf8')

@@ -154,8 +154,8 @@ describe('tmux helpers', () => {
         .fn()
         .mockResolvedValueOnce(
           [
-            '%127\t1\t80\t24\t/tmp/left\t0\t0\t1\t0',
-            '%128\t0\t81\t24\t/tmp/right\t80\t0\t0\t0',
+            '%127\t1\t80\t24\t/tmp/left\t0\t0\t1\t0\tsingle',
+            '%128\t0\t81\t24\t/tmp/right\t80\t0\t0\t0\tsingle',
           ].join('\n'),
         ),
     }
@@ -170,6 +170,7 @@ describe('tmux helpers', () => {
         left: 0,
         top: 0,
         active: true,
+        borderLines: 'single',
       },
       {
         paneId: '%128',
@@ -180,6 +181,7 @@ describe('tmux helpers', () => {
         left: 80,
         top: 0,
         active: false,
+        borderLines: 'single',
       },
     ])
   })
@@ -192,8 +194,8 @@ describe('tmux helpers', () => {
         .fn()
         .mockResolvedValueOnce(
           [
-            '%127\t1\t160\t48\t/tmp/zoomed\t0\t0\t1\t1',
-            '%128\t0\t80\t24\t/tmp/hidden\t80\t0\t0\t1',
+            '%127\t1\t160\t48\t/tmp/zoomed\t0\t0\t1\t1\tdouble',
+            '%128\t0\t80\t24\t/tmp/hidden\t80\t0\t0\t1\tdouble',
           ].join('\n'),
         ),
     }
@@ -208,6 +210,7 @@ describe('tmux helpers', () => {
         left: 0,
         top: 0,
         active: true,
+        borderLines: 'double',
       },
     ])
   })

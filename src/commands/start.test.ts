@@ -230,6 +230,7 @@ describe('runStart', () => {
         height: 16,
         left: 0,
         top: 0,
+        borderLines: 'single',
       },
       {
         paneId: '%128',
@@ -239,9 +240,9 @@ describe('runStart', () => {
         height: 16,
         left: 41,
         top: 0,
+        borderLines: 'single',
       },
     ])
-    tmuxMocks.getPaneBorderLines.mockResolvedValueOnce('single')
     fsMocks.readFile.mockResolvedValueOnce(
       JSON.stringify({
         status: 'selected',
@@ -269,6 +270,10 @@ describe('runStart', () => {
     await expect(
       runStart(['--scope', 'all', '%127', '/dev/ttys001']),
     ).resolves.toBe(0)
+
+    expect(tmuxMocks.focusClientPane).not.toHaveBeenCalled()
+    expect(tmuxMocks.getPaneStartContext).not.toHaveBeenCalled()
+    expect(tmuxMocks.getPaneBorderLines).not.toHaveBeenCalled()
 
     const stateWrite = fsMocks.writeFile.mock.calls.find(
       ([filePath]) => filePath === '/tmp/tmux-fuzzy-motion-test/state.json',

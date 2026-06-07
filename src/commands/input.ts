@@ -259,10 +259,21 @@ export const createFrame = (
   return { body }
 }
 
+export const createInitialFrameOutput = (frame: Frame): string => {
+  const full = frame.body.map((line) => line.trimEnd()).join('\n')
+  const sparse = frame.body
+    .map((line, index) => [index, line.trimEnd()] as const)
+    .filter(([, line]) => line.length > 0)
+    .map(([index, line]) => `\u001B[${index + 1};1H${line}`)
+    .join('')
+
+  return sparse.length < full.length ? sparse : full
+}
+
 const writeFullFrame = (output: NodeJS.WriteStream, frame: Frame): void => {
   output.write('\u001B[?7l')
   clearScreen(output)
-  output.write(frame.body.join('\n'))
+  output.write(createInitialFrameOutput(frame))
   output.write('\u001B[H\u001B[?7h')
 }
 

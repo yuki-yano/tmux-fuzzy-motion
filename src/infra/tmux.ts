@@ -24,6 +24,7 @@ export type WindowPaneContext = PaneStartContext & {
   left: number
   top: number
   active: boolean
+  borderLines: PaneBorderLines
 }
 
 export type PaneBorderLines =
@@ -167,7 +168,7 @@ export const listWindowPanes = async (
         '-t',
         paneId,
         '-F',
-        '#{pane_id}\t#{pane_in_mode}\t#{pane_width}\t#{pane_height}\t#{pane_current_path}\t#{pane_left}\t#{pane_top}\t#{?pane_active,1,0}\t#{window_zoomed_flag}',
+        '#{pane_id}\t#{pane_in_mode}\t#{pane_width}\t#{pane_height}\t#{pane_current_path}\t#{pane_left}\t#{pane_top}\t#{?pane_active,1,0}\t#{window_zoomed_flag}\t#{pane-border-lines}',
       ])
     ).trim()
   } catch (error) {
@@ -188,6 +189,7 @@ export const listWindowPanes = async (
         top,
         active,
         zoomed,
+        borderLines,
       ] = line.split('\t')
       const numeric = [width, height, left, top].map((value) => Number(value))
 
@@ -195,11 +197,23 @@ export const listWindowPanes = async (
         !resolvedPaneId ||
         !paneInMode ||
         !currentPath ||
-        [active, zoomed].some((value) => value === undefined) ||
+        [active, zoomed, borderLines].some((value) => value === undefined) ||
         numeric.some((value) => !Number.isFinite(value))
       ) {
         throw new Error('tmux-fuzzy-motion: failed to resolve window panes')
       }
+
+      if (
+        borderLines !== 'single' &&
+        borderLines !== 'double' &&
+        borderLines !== 'heavy' &&
+        borderLines !== 'simple' &&
+        borderLines !== 'number' &&
+        borderLines !== 'spaces'
+      ) {
+        throw new Error('tmux-fuzzy-motion: failed to resolve window panes')
+      }
+      const resolvedBorderLines: PaneBorderLines = borderLines
 
       return {
         paneId: resolvedPaneId,
@@ -210,6 +224,7 @@ export const listWindowPanes = async (
         left: Number(left),
         top: Number(top),
         active: active === '1',
+        borderLines: resolvedBorderLines,
         zoomed: zoomed === '1',
       }
     })

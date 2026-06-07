@@ -43,12 +43,27 @@ export const renderOverlay = (
 export const createOverlayRenderer = (
   lines: string[],
 ): ((targets: MatchTarget[]) => string[]) => {
-  const baseCellsByLine = lines.map((line) => createStyledDisplayCells(line))
-  const baseLines = baseCellsByLine.map((cells) => cells.join(''))
+  const baseLines = [...lines]
+  const baseCellsByLine = new Map<number, string[]>()
   const targetLine = (target: MatchTarget): number =>
     (target.screenLine ?? target.line) - 1
   const targetCol = (target: MatchTarget): number =>
     target.screenCol ?? target.col
+  const baseCellsForLine = (lineIndex: number): string[] | undefined => {
+    const line = lines[lineIndex]
+    if (line === undefined) {
+      return undefined
+    }
+
+    const existing = baseCellsByLine.get(lineIndex)
+    if (existing) {
+      return existing
+    }
+
+    const cells = createStyledDisplayCells(line)
+    baseCellsByLine.set(lineIndex, cells)
+    return cells
+  }
 
   return (targets: MatchTarget[]): string[] => {
     const rendered = [...baseLines]
@@ -64,7 +79,7 @@ export const createOverlayRenderer = (
 
     for (const target of sorted) {
       const lineIndex = targetLine(target)
-      const baseCells = baseCellsByLine[lineIndex]
+      const baseCells = baseCellsForLine(lineIndex)
       if (!baseCells) {
         continue
       }
