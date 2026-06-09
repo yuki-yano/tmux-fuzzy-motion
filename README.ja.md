@@ -84,7 +84,7 @@ tmux source-file ~/.tmux.conf
 5. fuzzy match で候補を絞り込む。ローマ字 query は同梱 Migemo 辞書で日本語語句にも一致する
 6. 大文字 hint を押して即座に移動する
 7. `--scope all` で選択した場合は、該当 pane を active にして必要なら `copy-mode` に入ってから移動する
-8. `Esc` または `Ctrl-[` でキャンセルする
+8. `Esc` または `Ctrl-[` でキャンセルする。`start` が current pane を `copy-mode` に入れた場合は、キャンセル時に `copy-mode` も抜ける
 
 ## 入力キー
 

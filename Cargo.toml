@@ -1,6 +1,6 @@
 [package]
 name = "tmux-fuzzy-motion"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 description = "Fuzzy hint motion for tmux copy-mode"
 license = "MIT AND BSD-3-Clause"

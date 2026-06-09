@@ -85,3 +85,9 @@ pub fn enter_copy_mode(pane_id: &str) -> Result<()> {
         .map_err(|error| anyhow!("tmux-fuzzy-motion: failed to enter copy-mode: {error}"))?;
     Ok(())
 }
+
+pub fn exit_copy_mode(pane_id: &str) -> Result<()> {
+    tmux(&s(&["send-keys", "-X", "-t", pane_id, "cancel"]))
+        .map_err(|error| anyhow!("tmux-fuzzy-motion: failed to exit copy-mode: {error}"))?;
+    Ok(())
+}

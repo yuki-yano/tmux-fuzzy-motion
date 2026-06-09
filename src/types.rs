@@ -110,4 +110,5 @@ pub struct PopupState {
     pub state: InputState,
     pub x: Option<String>,
     pub y: Option<String>,
+    pub entered_copy_mode_pane: Option<String>,
 }

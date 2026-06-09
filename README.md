@@ -91,7 +91,8 @@ tmux source-file ~/.tmux.conf
 6. Press an uppercase hint to jump immediately.
 7. In `--scope all`, the selected pane becomes active and enters copy-mode if
    needed before the cursor moves.
-8. Press `Esc` or `Ctrl-[` to cancel.
+8. Press `Esc` or `Ctrl-[` to cancel. If `start` entered copy-mode for the
+   current pane, cancel exits copy-mode as well.
 
 ## Input Keys
 

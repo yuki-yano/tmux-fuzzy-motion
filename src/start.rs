@@ -8,7 +8,7 @@ use tempfile::tempdir;
 use crate::action::move_copy_cursor;
 use crate::capture::{capture_pane, fit_capture_to_height};
 use crate::tmux::{
-    enter_copy_mode, get_pane_start_context, list_window_panes, s, tmux, tmux_quiet,
+    enter_copy_mode, exit_copy_mode, get_pane_start_context, list_window_panes, s, tmux, tmux_quiet,
 };
 use crate::types::{InputResult, InputState, PaneSnapshot, PopupState, Scope, ScopeArg};
 use crate::width::compact_styled_display_cells;
@@ -61,23 +61,30 @@ pub fn run_start(scope: ScopeArg, pane_id: String, client_tty: String) -> Result
     let result_text = fs::read_to_string(&result_file)
         .map_err(|error| anyhow!("tmux-fuzzy-motion: popup did not produce result: {error}"))?;
     let result: InputResult = serde_json::from_str(&result_text)?;
-    if let InputResult::Selected { target } = result {
-        let target_pane = target
-            .candidate
-            .pane_id
-            .clone()
-            .unwrap_or_else(|| pane_id.clone());
-        tmux_quiet(&s(&["select-pane", "-t", &target_pane]));
-        if popup_state.state.scope == Scope::All
-            && !popup_state
-                .state
-                .panes
-                .iter()
-                .any(|pane| pane.pane_id == target_pane && pane.in_copy_mode)
-        {
-            enter_copy_mode(&target_pane)?;
+    match result {
+        InputResult::Cancelled => {
+            if let Some(auto_entered_pane) = popup_state.entered_copy_mode_pane.as_deref() {
+                exit_copy_mode(auto_entered_pane)?;
+            }
         }
-        move_copy_cursor(&target_pane, &target)?;
+        InputResult::Selected { target } => {
+            let target_pane = target
+                .candidate
+                .pane_id
+                .clone()
+                .unwrap_or_else(|| pane_id.clone());
+            tmux_quiet(&s(&["select-pane", "-t", &target_pane]));
+            if popup_state.state.scope == Scope::All
+                && !popup_state
+                    .state
+                    .panes
+                    .iter()
+                    .any(|pane| pane.pane_id == target_pane && pane.in_copy_mode)
+            {
+                enter_copy_mode(&target_pane)?;
+            }
+            move_copy_cursor(&target_pane, &target)?;
+        }
     }
     command.clear();
     Ok(())
@@ -85,6 +92,7 @@ pub fn run_start(scope: ScopeArg, pane_id: String, client_tty: String) -> Result
 
 fn build_current_state(pane_id: &str, client_tty: &str) -> Result<PopupState> {
     let pane = get_pane_start_context(pane_id)?;
+    let entered_copy_mode_pane = (!pane.in_copy_mode).then(|| pane_id.to_string());
     if !pane.in_copy_mode {
         enter_copy_mode(pane_id)?;
     }
@@ -103,6 +111,7 @@ fn build_current_state(pane_id: &str, client_tty: &str) -> Result<PopupState> {
             height: pane.height,
             panes: Vec::new(),
         },
+        entered_copy_mode_pane,
     })
 }
 
@@ -171,6 +180,7 @@ fn build_all_pane_state(pane_id: &str, client_tty: &str) -> Result<PopupState> {
             height,
             panes: snapshots,
         },
+        entered_copy_mode_pane: None,
     })
 }
 
